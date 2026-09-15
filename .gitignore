@@ -7,6 +7,4 @@ build/
 sdkconfig.old
 sdkconfig.old.old
 managed_components/
-sdkconfig.old
-sdkconfig.old.old
 tool_set_config.json

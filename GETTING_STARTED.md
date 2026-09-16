@@ -1,4 +1,4 @@
-# IREC Payload Firmware — New Member Guide
+# IREC Payload Firmware - New Member Guide
 
 ## Welcome!
 

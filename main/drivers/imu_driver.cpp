@@ -4,6 +4,10 @@
  *  Created on: May 19, 2026
  *      Author: sir_l
  */
+/*
+* Edited on: October 11, 2026
+* Updated IMU for library BNO085
+*/
 
 #include "imu_driver.h"
 

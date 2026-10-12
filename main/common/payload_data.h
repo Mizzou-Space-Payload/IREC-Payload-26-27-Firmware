@@ -59,6 +59,15 @@ typedef struct {
 	uint32_t health_task_loops;
 } system_status_t;
 
+
+typedef struct {
+    uint32_t timestamp_ms;
+	float temperature;
+    float pressure;
+    float humidity;
+	bool valid;
+} BME688_Data_t;
+
 #endif /* MAIN_COMMON_PAYLOAD_DATA_H_ */
 
 

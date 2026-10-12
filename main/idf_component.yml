@@ -15,3 +15,4 @@ dependencies:
   #   # All dependencies of `main` are public by default.
   #   public: true
   esp-idf-lib/bmp280: '*'
+  solderedelectronics/soldered-bme688-esp-idf-component: ^1.0.1

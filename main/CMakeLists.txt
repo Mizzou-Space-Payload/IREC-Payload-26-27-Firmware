@@ -2,7 +2,7 @@
 # for more information about component CMakeLists.txt files.
 
 idf_component_register(
-    SRCS main.c drivers/barometer_driver.c drivers/imu_driver.cpp drivers/storage_driver.c drivers/buzzer_driver.c common/i2c_bus.c # list the source files of this component
+    SRCS main.c drivers/barometer_driver.c drivers/imu_driver.cpp drivers/storage_driver.c drivers/buzzer_driver.c drivers/adxl375_driver.c common/i2c_bus.c # list the source files of this component
     INCLUDE_DIRS . drivers common  # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES            # optional, list the public requirements (component names)

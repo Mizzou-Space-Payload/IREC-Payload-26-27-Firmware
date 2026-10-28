@@ -50,6 +50,9 @@ typedef struct {
 	bool imu_ok;
 	bool barometer_ok;
 	bool storage_ok;
+	
+	bool i2c_ok;
+	
 	uint32_t imu_read_fail_count;
 	uint32_t barometer_read_fail_count;
 	uint32_t dropped_packet_count;

@@ -42,19 +42,29 @@ typedef struct {
 } imu_data_t;
 
 typedef struct{
+	uint32_t timestamp_ms;
+	
+	float temperature_c;
+	bool valid;
+} tmp117_data_t;
+
+typedef struct{
 	barometer_data_t baro_data;
 	imu_data_t imu_data;
+	tmp117_data_t tmp_data;
 } sensor_data_t;
 
 typedef struct {
 	bool imu_ok;
 	bool barometer_ok;
+	bool tmp117_ok;
 	bool storage_ok;
 	
 	bool i2c_ok;
 	
 	uint32_t imu_read_fail_count;
 	uint32_t barometer_read_fail_count;
+	uint32_t tmp117_read_fail_count;
 	uint32_t dropped_packet_count;
 	
 	uint32_t sensor_task_loops;

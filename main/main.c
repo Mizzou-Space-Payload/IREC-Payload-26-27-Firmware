@@ -10,6 +10,8 @@
 #include "imu_driver.h"
 #include "barometer_driver.h"
 #include "storage_driver.h"
+#include "adxl375_driver.h"
+#include "i2c_bus.h"
 #include "payload_data.h"
 
 #define RUN_STORAGE_TEST 1
@@ -35,6 +37,8 @@ QueueHandle_t sensorData = NULL;
 //Tags
 static const char * baroTAG = "Barometer";
 static const char * imuTAG = "IMU";
+static const char * adxlTAG = "ADXL375";
+static const char * i2cTAG = "I2C";
 static const char * logTAG = "Logger";
 static const char * healthTAG = "SYSTEM ALIVE";
 static const char * mainTAG = "Main";
@@ -80,7 +84,13 @@ void sensorTask(void *pvParameters){
 				health_data.barometer_read_fail_count++;
 			}
 		}
-		
+
+		if(health_data.adxl_ok){
+			if(!adxl375_read(&(sensorPacket.adxl_data))){
+				health_data.adxl_read_fail_count++;
+			}
+		}
+
 		//Sends to queue
 		if((xQueueSend(sensorData, &sensorPacket, 0) != pdTRUE)){ //Counts packetloss and sends to queue
 			health_data.dropped_packet_count++;
@@ -95,7 +105,7 @@ void sensorTask(void *pvParameters){
 
 void loggerTask(void *pvParameters){
 	sensor_data_t serialBuffer;
-	char line[256];
+	char line[384];
 	
 	while(1){
 		if(xQueueReceive(sensorData, &serialBuffer, portMAX_DELAY) == pdTRUE){
@@ -121,11 +131,19 @@ void loggerTask(void *pvParameters){
 			serialBuffer.imu_data.gyro_x, 
 			serialBuffer.imu_data.gyro_y, 
 			serialBuffer.imu_data.gyro_z);
-			
+
+			//ADXL375 data print
+			ESP_LOGI(logTAG,
+			"| ADXL375 |\nTimestamp: %lu | X(g): %.2f | Y(g): %.2f | Z(g): %.2f",
+			serialBuffer.adxl_data.timestamp_ms,
+			serialBuffer.adxl_data.ax_g,
+			serialBuffer.adxl_data.ay_g,
+			serialBuffer.adxl_data.az_g);
+
 			/*MicroSD writing, right now we will write the health and sensor data into the same CSV file 
 			, in the future the data will be separated into two separate files and written into at different intervals*/
 			snprintf(line, sizeof(line),
-				"%lu, %d, %.3f, %.3f, %.3f, %.6f, %.6f, %.6f, %d, %.2f, %.2f, %.2f, %lu, %lu, %lu",
+				"%lu, %d, %.3f, %.3f, %.3f, %.6f, %.6f, %.6f, %d, %.2f, %.2f, %.2f, %d, %.3f, %.3f, %.3f, %lu, %lu, %lu, %lu",
 				(unsigned long)serialBuffer.imu_data.timestamp_ms,
 				
 				serialBuffer.imu_data.valid,
@@ -140,10 +158,16 @@ void loggerTask(void *pvParameters){
 				serialBuffer.baro_data.pressure_pa,
 				serialBuffer.baro_data.temperature_c,
 				serialBuffer.baro_data.altitude_m,
-				
+
+				serialBuffer.adxl_data.valid,
+				serialBuffer.adxl_data.ax_g,
+				serialBuffer.adxl_data.ay_g,
+				serialBuffer.adxl_data.az_g,
+
 				(unsigned long)health_data.dropped_packet_count,
 				(unsigned long)health_data.imu_read_fail_count,
-				(unsigned long)health_data.barometer_read_fail_count);
+				(unsigned long)health_data.barometer_read_fail_count,
+				(unsigned long)health_data.adxl_read_fail_count);
 			
 			storage_write(line);
 			
@@ -158,11 +182,13 @@ void healthTask(void *pvParameters){
 	
 	while(1){
 		ESP_LOGI(healthTAG,
-		"baro_ok = %d | imu_ok = %d | imu_read_fail = %lu | baro_read_fail = %lu | Dropped_Packets: %lu | Health_loops: %lu | Sensor_loops: %lu",
+		"baro_ok = %d | imu_ok = %d | adxl_ok = %d | imu_read_fail = %lu | baro_read_fail = %lu | adxl_read_fail = %lu | Dropped_Packets: %lu | Health_loops: %lu | Sensor_loops: %lu",
 		health_data.barometer_ok,
 		health_data.imu_ok,
+		health_data.adxl_ok,
 		health_data.imu_read_fail_count,
 		health_data.barometer_read_fail_count,
+		health_data.adxl_read_fail_count,
 		health_data.dropped_packet_count,
 		health_data.health_task_loops,
 		health_data.sensor_task_loops
@@ -195,7 +221,7 @@ static void run_payload_tasks(void){
 	}
 	
 	//Log_file CSV header row write
-	if(!storage_write("timestamp_ms, imu_valid, roll_deg, pitch_deg, yaw_deg, gyro_x, gyro_y, gyro_z, baro_valid, pressure_pa, temp_c, altitude_m, dropped_packets, imu_read_fail_count, baro_read_fail_count")){
+	if(!storage_write("timestamp_ms, imu_valid, roll_deg, pitch_deg, yaw_deg, gyro_x, gyro_y, gyro_z, baro_valid, pressure_pa, temp_c, altitude_m, adxl_valid, accel_x_g, accel_y_g, accel_z_g, dropped_packets, imu_read_fail_count, baro_read_fail_count, adxl_read_fail_count")){
 		ESP_LOGE(mainTAG, "CSV Header Row writing failed...");
 		return;
 	}
@@ -209,6 +235,13 @@ static void run_payload_tasks(void){
 		health_data.imu_ok = true;
 	}
 	
+	//Shared I2C bus must exist before any I2C sensor is initialized
+	if(i2c_bus_init(&health_data) != ESP_OK){
+		ESP_LOGE(i2cTAG, "Shared I2C bus initialization failed...");
+	}
+
+	/*Disabled until the barometer driver moves onto the shared I2C bus,
+	  its i2cdev library tries to create its own bus on I2C_NUM_0 and conflicts
 	if(!barometer_init()){
 		ESP_LOGE(baroTAG, "Barometer initialization failed...");
 		health_data.barometer_ok = false;
@@ -216,7 +249,15 @@ static void run_payload_tasks(void){
 	} else {
 		health_data.barometer_ok = true;
 	}
-	
+	*/
+
+	if(!adxl375_init()){
+		ESP_LOGE(adxlTAG, "ADXL375 initialization failed...");
+		health_data.adxl_ok = false;
+	} else {
+		health_data.adxl_ok = true;
+	}
+
 	/*Initialize Baro, IMU, and MicroSD Card REDUNDANCY VERSION REV 1 FOR FLIGHT USE
 	for(int i = 0; i < 3; i++){
 		if(!barometer_init()){

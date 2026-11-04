@@ -34,6 +34,10 @@ static i2c_master_bus_handle_t i2c_bus_handle; //Tracks physical hardware instan
 #define TMP117_ADDR_VCC  0x49  // Address if ADDR pin is pulled high
 
 bool tmp117_driver_init(void){
+	if(tmp117_initialized) {
+		ESP_LOGE(TAG, "Driver warning: tmp117_driver_init already called, and tmp117 was initialized");
+		return true;
+	}
 	esp_err_t err;//ESP-IDF's error/status type
 	/*
 	i2c_master_bus_config_t bus_cfg = {  // Set-up ports
@@ -73,7 +77,7 @@ bool tmp117_driver_init(void){
 
 	ESP_LOGI(TAG, "TMP117 driver successfully initialized.");
 	tmp117_initialized = true;
-	return tmp117_initialized = true;
+	return true;
 }
 
 bool tmp117_driver_read(float *temperature) {

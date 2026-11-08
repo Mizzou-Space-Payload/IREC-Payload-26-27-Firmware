@@ -212,7 +212,7 @@ static void run_payload_tasks(void){
 	}
 	
 	//MicroSD card init
-	if(!storage_init()){
+	if(!storage_init(&health_data)){
 		ESP_LOGE(mainTAG, "Storage initialization failed...");
 		health_data.storage_ok = false;
 		return;
@@ -301,7 +301,7 @@ static void run_payload_tasks(void){
 static void storage_test(void){
 	ESP_LOGI(mainTAG, "Starting SD storage test...");
 
-    if (!storage_init()) {
+    if (!storage_init(&health_data)) {
         ESP_LOGE(mainTAG, "storage_init failed");
         return;
     }

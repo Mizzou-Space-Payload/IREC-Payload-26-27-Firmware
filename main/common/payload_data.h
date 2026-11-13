@@ -46,6 +46,26 @@ typedef struct {
 
 } imu_data_t;
 
+<<<<<<< HEAD
+typedef struct{
+	uint32_t timestamp_ms;
+	
+	float temperature_c;
+	bool valid;
+} tmp117_data_t;
+
+typedef struct{
+	barometer_data_t baro_data;
+	imu_data_t imu_data;
+	tmp117_data_t tmp_data;
+} sensor_data_t;
+
+typedef struct {
+	bool imu_ok;
+	bool barometer_ok;
+	bool tmp117_ok;
+	bool storage_ok;
+=======
 
 /* ADXL375 high-G accelerometer measurements */
 typedef struct {
@@ -140,12 +160,23 @@ typedef enum {
 
 typedef struct{
 	flight_input_type_t type;
+>>>>>>> origin/main
 	
 	union{
 		adxl_data_t adxl_data;
 		barometer_data_t baro_data;
 	} data;
 	
+<<<<<<< HEAD
+	uint32_t imu_read_fail_count;
+	uint32_t barometer_read_fail_count;
+	uint32_t tmp117_read_fail_count;
+	uint32_t dropped_packet_count;
+	
+	uint32_t sensor_task_loops;
+	uint32_t logger_task_loops;
+	uint32_t health_task_loops;
+=======
 }flight_state_input_t;
 
 typedef enum {
@@ -203,6 +234,7 @@ typedef struct {
     uint32_t logger_task_loops;
     uint32_t health_task_loops;
 
+>>>>>>> origin/main
 } system_status_t;
 
 #endif /* MAIN_COMMON_PAYLOAD_DATA_H_ */

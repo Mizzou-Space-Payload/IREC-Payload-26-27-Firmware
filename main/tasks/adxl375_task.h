@@ -16,6 +16,8 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 
+#include "flight_state_task.h"
+
 #include "common/payload_data.h"
 
 
@@ -30,7 +32,7 @@ esp_err_t adxl375_task_start(
     QueueHandle_t logger_queue,
     QueueHandle_t flight_state_queue,
     TaskHandle_t logger_task_handle,
-    system_status_t *system_status
+    system_status_t *system_status,
     TaskHandle_t *task_handle_out
 );
 

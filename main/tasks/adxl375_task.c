@@ -4,7 +4,7 @@
  * Created on:	 				Nov 5, 2026
  * Author: 						sir_l, Joey_J
  *
- * Last Modified: 				Nov 8, 2026
+ * Last Modified: 				Nov 13, 2026
  * User that last modified: 	Joey_J
  *
  * Desc:
@@ -57,10 +57,9 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 
-#include "adxl375_task.h"
-#include "payload_data.h"
-#include "flight_state.h"
-#include "adxl375.h"
+#include "adxl375_task.h" // declares adxl375_task_start()
+#include "payload_data.h" // allows flight_state_input_t
+#include "drivers/adxl375_driver.h" // allows adxl375_init() and adxl375_read() calls
 
 static const char *TAG = "ADXL375_TASK";
 
@@ -122,6 +121,13 @@ esp_err_t adxl375_task_start(
 	//Initialize output handle to NULL
 	*task_handle_out = NULL;
 
+	// initalize adxl375
+	// if adxl375 fails to initalize then send an error out
+	if (!adxl375_init()) {
+		system_status->adxl_ok = false; 
+		return ESP_FAIL; 
+	}
+
 	// populate static task configuration
 	adxl375_config.logger_queue = logger_queue;
 	adxl375_config.flight_state_queue = flight_state_queue;
@@ -143,6 +149,7 @@ esp_err_t adxl375_task_start(
 		return ESP_FAIL;
 	}
 
+	// adxl375 task is started set adxl375_task_started to true
 	adxl375_task_started = true;
 
 	ESP_LOGI(TAG, "ADXL375 task created successfully");
@@ -167,7 +174,6 @@ static void adxl375_task(void *pvParameters){
 	(void)logger_queue;
 	(void)flight_state_queue;
 	(void)logger_task_handle;
-	(void)system_status;
 
 	ESP_LOGI(TAG, "ADXL375 task started");
 
@@ -175,10 +181,8 @@ static void adxl375_task(void *pvParameters){
 	while(1){
 		 /*
          * 1. Read ADXL375 sensor data.
-         * ADXL375 Sensor data is defined as
-         * 	I.	Data from
-         * 	II.
-         * 	III.
+         * ADXL375 Sensor data is defined as 
+		 * use the payload_data.h struct aka adxl_data_t 
          *
          * 2. Package the measurement into a sensor_event_t.
          *
@@ -192,6 +196,41 @@ static void adxl375_task(void *pvParameters){
          *
          * 7. Wait until the next acquisition period.
          */
+
+
+		// stage 1. Read ADXL375 sensor data
+		/** for refrence 
+		* typedef struct {
+		*
+    	*	uint32_t timestamp_ms;
+    	*	float ax_g;
+    	*	float ay_g;
+    	*	float az_g;
+   		*	 bool valid;
+		*	
+		*	} adxl_data_t;
+		*/
+
+		// create zero data 
+		adxl_data_t sample = {0}; 
+
+		// for refrence again 
+		// bool adxl375_read(adxl_data_t *out);
+		// returns a bool if the data was read and if it was valid 
+		if (adxl375_read(&sample) && sample.valid) {
+
+			// set status adxl_okay to true
+			system_status->adxl_ok = true; 
+
+
+
+
+		} else {
+
+			// failed read
+			system_status->adxl_ok = false;  
+			system_status->adxl_read_fail_count++; 
+		}
 
 		// Temporary placeholder so the task yields; replace with vTaskDelayUntil()
 		vTaskDelay(pdMS_TO_TICKS(10));

@@ -124,6 +124,7 @@ esp_err_t adxl375_task_start(
 	// initalize adxl375
 	// if adxl375 fails to initalize then send an error out
 	if (!adxl375_init()) {
+		ESP_LOGE(TAG, "ADXL375 init failed");
 		system_status->adxl_ok = false; 
 		return ESP_FAIL; 
 	}
@@ -170,12 +171,11 @@ static void adxl375_task(void *pvParameters){
 	TaskHandle_t logger_task_handle = config.logger_task_handle;
 	system_status_t *system_status = config.system_status;
 
-	// Silence unused-variable warnings until the loop is implemented
-	(void)logger_queue;
-	(void)flight_state_queue;
-	(void)logger_task_handle;
-
 	ESP_LOGI(TAG, "ADXL375 task started");
+
+	// loop variables 
+	TickType_t last_wake_time = xTaskGetTickCount(); 
+	const TickType_t sample_period = pdMS_TO_TICKS(10); 
 
 	//Main task execution loop
 	while(1){
@@ -212,7 +212,7 @@ static void adxl375_task(void *pvParameters){
 		*/
 
 		// create zero data 
-		adxl_data_t sample = {0}; 
+		adxl_data_t sample = {0}; // (R3)
 
 		// for refrence again 
 		// bool adxl375_read(adxl_data_t *out);
@@ -222,7 +222,38 @@ static void adxl375_task(void *pvParameters){
 			// set status adxl_okay to true
 			system_status->adxl_ok = true; 
 
+			// STEP 2 Package the measurement into a sensor_event_t.
+			sensor_event_t event = {0}; 		 // lives on stack non dynamic (R3)
+			event.sensor_id = SENSOR_ID_ADXL375; // set sensor to ADXL375 
+			event.data.adxl_data = sample; 		 // copy the reading 
 
+			// STEP 3 Send the sensor event to the logger queue. -> using FreeRTOS 
+			// xQueueSend returns pdPASS (1) if copied into the queue, errQUEUE_FULL (0) if full
+			if (xQueueSend(logger_queue, &event, 0) == pdPASS) {
+
+				// sent to queue successfully 
+				// STEP 4 Notify the logger task if the event was successfully queued.
+				if (logger_task_handle != NULL) {
+
+					// xTaskNotifyGive always returns pdPASS so no need to check R7
+					(void)xTaskNotifyGive(logger_task_handle); 
+				} 
+			} else {
+				// queue full so increase packet count... 
+				system_status->dropped_packet_count++; 
+			}
+
+			// STEP 5 Package the measurement into a flight_state_input_t.
+			flight_state_input_t adxl_flight_state_input = {0}; 	// create flight_state_input (R3) 
+			adxl_flight_state_input.type = FLIGHT_INPUT_ADXL375; 	// set flight input to ADXL375
+			adxl_flight_state_input.data.adxl_data = sample;  
+
+			// STEP 6 Send the measurement to the flight-state queue.
+			if (xQueueSend(flight_state_queue, &adxl_flight_state_input, 0) != pdPASS) {
+
+				// flight_state_queue is full and sample is dropped
+				system_status->dropped_packet_count++;
+			}
 
 
 		} else {
@@ -232,7 +263,8 @@ static void adxl375_task(void *pvParameters){
 			system_status->adxl_read_fail_count++; 
 		}
 
-		// Temporary placeholder so the task yields; replace with vTaskDelayUntil()
-		vTaskDelay(pdMS_TO_TICKS(10));
+		// STEP 7 Wait until the next acquisition period.
+		// vTaskDelayUntil keeps a fixed 10ms period 
+		vTaskDelayUntil(&last_wake_time, sample_period);
 	}
 }

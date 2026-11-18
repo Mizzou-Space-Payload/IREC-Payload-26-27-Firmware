@@ -71,7 +71,7 @@ typedef struct {
 
     bool valid;
 
-} bme688_data_t;
+} BME688_Data_t;
 
 
 /* TMP117 temperature measurements */
@@ -121,7 +121,7 @@ typedef struct {
         barometer_data_t baro_data;
         imu_data_t imu_data;
         adxl_data_t adxl_data;
-        bme688_data_t bme688_data;
+        BME688_Data_t bme688_data;
         tmp117_data_t tmp117_data;
 
     } data;
@@ -171,7 +171,7 @@ typedef struct {
     barometer_data_t baro_data;
     imu_data_t imu_data;
     adxl_data_t adxl_data;
-    bme688_data_t bme688_data;
+    BME688_Data_t bme688_data;
     tmp117_data_t tmp117_data;
 
 } sensor_data_t;
